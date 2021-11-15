@@ -1,0 +1,461 @@
+---
+title: "Final Project"
+author: "Anh Trinh - 40069870"
+date: "12/16/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1 - Olympic games
+1. 
+```{r}
+#read the data and store in a data frame speed.data
+speed.data <- read.table("speed.txt", header = TRUE)
+
+#print the first 5 rows
+speed.data[1:5, ]
+```
+
+2. 
+```{r}
+#calculate the average speed (in m/s)
+Speed <- speed.data$Distance.100 * 100 / speed.data$Time
+
+#add this data as a new column
+modified.speed.data <- cbind(speed.data, Speed)
+modified.speed.data
+
+#print the first 5 rows of the modified data
+modified.speed.data[1:5, ]
+```
+
+3.
+```{r}
+#sort the data by increasing value of year
+sorted.data <- modified.speed.data[order(modified.speed.data$Year), ]
+sorted.data
+
+#print the first 10 rows of the sorted data
+sorted.data[1:10, ]
+```
+
+4.
+```{r}
+#create a new data frame containing 2 columns
+speed.year <- data.frame("Year"=modified.speed.data$Year,
+          "Speed"=modified.speed.data$Speed)
+speed.year
+
+#plot the speed as a function of the year
+plot(speed.year$Year, speed.year$Speed, xlab = "Year",
+     ylab = "Speed")
+```
+I observe that the speed for 200m, 400m, 800m, 1500m, is decreasing respectively for each year (means that the speed for 200m is greatest, and one of 1500m is smallest)
+
+5.
+```{r}
+lm(speed.year$Speed ~ speed.year$Year)
+```
+The best fit line is $y = -13.01660 + 0.01082x$
+```{r}
+plot(speed.year$Year, speed.year$Speed, abline(lm(speed.year$Speed ~ speed.year$Year)), xlab = "Year",
+     ylab = "Speed")
+```
+
+6. Assume the best fitting line computed in part 5 has the form $y = mx + q$, so $m=0.01082$ and $q=-13.01660$
+
+7. The 100m race will be likely to run in less than 7 seconds, which means the speed has to be greater than $\frac{100}{7}$ m/s \
+According to the best fit line found in part 6, the year that 100m race will be run at exactly 7 seconds is $\frac {\frac{100}{7} + 13.01660}{0.01082}= 2523.32$ \
+Thus, 100 meters race will be likely to be run in less than 7 seconds in year 2524
+
+8 + 9
+```{r}
+#compute the residuals i.e. the differences between the actual average speed 
+#and the speed predicted by the best fitting line
+predicted.speed <- -13.01660 + 0.01082 * speed.year$Year
+
+Residual <- abs(speed.year$Speed - predicted.speed)
+
+#to find residual each year, first we have to sort by increasing value of year
+#then calculate sum of all residuals of each year
+speed.year <- cbind(speed.year, Residual)
+sorted.speed.year <- speed.year[order(speed.year$Year),]
+i=1
+residual <- c()
+while (i<=92){
+  res <- sum(sorted.speed.year$Residual[i:(i+3)])
+  residual <- c(residual,res)
+  i=i+4
+}
+
+#histogram
+hist(residual, xlab = "Residual of Each Year", main = "Histogram of the Residuals")
+
+qqnorm(residual)
+```
+By looking at the histogram as well as the approximately linear qq plot, we can see that the residuals are very close to be normally distributed
+
+10.
+```{r}
+# the original matrix A from which QR was constructed
+A <- qr.X(lm(speed.year$Speed ~ speed.year$Year)$qr)
+#using qr solve
+qr.solve(A, speed.year$Speed)
+```
+$m=0.01081622$ and $q=-13.01660062$
+
+11.
+```{r}
+qqplot(modified.speed.data$Speed, modified.speed.data$Altitude, xlab = "Speed", ylab = "Altitude")
+
+cor.test(modified.speed.data$Speed, modified.speed.data$Altitude)$p.value
+```
+Since the p-value is > 5%, we can conclude that the altitude of the venue and the average speed are not significantly correlated 
+
+## Problem 2 - Modified Newton's method
+1.
+```{r}
+EvalPoly <- function(c, x){
+  p <- 0
+  for (i in 1:length(c)){
+    p <- p + c[i] * x^(i-1)
+  }
+  return (p)
+}
+```
+2.
+```{r}
+EvalPoly(c(1, -1.7, 0, 3.5), 13.4)
+```
+3.
+```{r}
+PolyDerEval <- function(c, x){
+  p <- 0
+  for (i in 2: length(c)){
+    p <- p + (i-1)*c[i]*x^(i-2)
+  }
+  return(p)
+}
+```
+4.
+```{r}
+PolyDerEval(c(1, -1.7, 0, 3.5), 13.4)
+```
+5.
+```{r}
+NewtonPoly <- function(c, x0, TOL){
+  k <- 1
+  approxi <- c(x0)
+  while (abs(EvalPoly(c, x0)) > TOL & k <= 1000){
+    x <- x0 - EvalPoly(c, x0)/PolyDerEval(c,x0) #newton's method
+    k <- k + 1
+    approxi <- c(approxi,x)
+    x0 <- x
+    
+  }
+  return(approxi)
+}
+```
+
+6.
+```{r}
+#print the sequence of approximations by Newton's method
+NewtonPoly(c(2.3, -7.1, 0, 1), -1, 10^-10)
+```
+
+7.
+```{r}
+iter <- c()
+for (k in 2:10){
+  #number of iterations needed by Newton's method
+  iter <- c(iter, length(NewtonPoly(c(rep(0,k),1), 1, 1e-12)))
+  #since x^2 = 0 + 0x + 1x^2
+  #      x^3 = 0 + 0x + 0x^2 + 1x^3 
+  #      x^4 = 0 + 0x + 0x^2 + 0x^3 + 1x^4 etc
+}
+
+plot(2:10, iter, xlab = "Exponent k", ylab = "Number of iterations")
+```
+8.
+```{r}
+PolyDer2Eval <- function(c, x){
+  p <- 0
+  for (i in 3: length(c)){
+    p <- (i-2)*(i-1)*c[i]*x^(i-3)
+  }
+  return(p)
+}
+
+PolyDer2Eval(c(1, -1.7, 0, 3.5), 13.4)
+```
+
+9.
+```{r}
+ModifiedNewtonPoly <- function(c, x0, TOL){
+  k <- 1
+  approxi <- c(x0)
+  while (abs(EvalPoly(c, x0)) > TOL & k <= 1000){
+    x <- x0 - 
+      (EvalPoly(c,x0) * PolyDerEval(c,x0)) / 
+      ((PolyDerEval(c,x0))^2 - EvalPoly(c,x0) * PolyDer2Eval(c,x0)) #modified newton's method
+    k <- k + 1
+    approxi <- c(approxi,x)
+    x0 <- x
+  }
+  return(approxi)
+}
+```
+
+10.
+```{r}
+iter <- c()
+for (k in 2:10){
+  #number of iterations needed by Modified Newton's method
+  iter <- c(iter, length(ModifiedNewtonPoly(c(rep(0,k),1), 1, 1e-12)))
+  #since x^2 = 0 + 0x + 1x^2
+  #      x^3 = 0 + 0x + 0x^2 + 1x^3 
+  #      x^4 = 0 + 0x + 0x^2 + 0x^3 + 1x^4 etc
+}
+
+plot(2:10, iter, xlab = "Exponent k", ylab = "Number of iterations")
+```
+ For each k, the number of iterations are the same to each other.
+
+
+## Problem 3 - Ada's walk
+```{r}
+AdaWalk <- function(){
+  #at A_0
+  x <- 0
+  y <- 0
+  xpos <- c() #x coordinates of each move
+  ypos <- c() #y coordinates of each move
+  xpos[1] <- 0
+  ypos[1] <- 0
+  for (i in 1:100){ # final position is A_100
+    r <- runif(1) #random uniform numbers
+    if (r <= 0.25){
+      x <- x + 1 #move right
+    }
+    if (r > 0.25 & r <= 0.5){
+      x <- x - 1 #move left
+    }
+    if (r > 0.5 & r <= 0.75){
+      y <- y + 1 #move up
+    }
+    if(r > 0.75){ 
+      y <- y - 1 #move down
+    }
+    xpos[i+1] <- x #update into the vector xpos
+    ypos[i+1] <- y #update into the vector ypos
+    if (xpos[i+1] == xpos[i] & ypos[i+1] == ypos[i]) #A_t != A_{t+1}
+      break
+    if(xpos[i+1] == 0 & ypos[i+1] == 0){ #if Ada is back in position (0,0)
+      break
+    }
+  }
+  return(rbind(xpos,ypos))
+}
+AdaWalk()
+```
+
+2.
+```{r}
+#example 1
+A1 <- AdaWalk()
+x1 <- A1[1,]
+y1 <- A1[2,]
+x1.min <- min(x1)
+x1.max <- max(x1)
+y1.min <- min(y1)
+y1.max <- max(y1)
+
+par(mfrow = c(2,2))
+
+plot(x1, y1, type="l", xlab="x", ylab = "y", main = "Example 1", 
+     xlim = range(x1.min:x1.max), ylim = range(y1.min:y1.max))
+points(cbind(0,0),pch=1,col="red")
+points(cbind(A1[1,ncol(A1)],A1[2,ncol(A1)]),pch=1,col="red")
+
+#example 2
+A2 <- AdaWalk()
+x2 <- A2[1,]
+y2 <- A2[2,]
+x2.min <- min(x2)
+x2.max <- max(x2)
+y2.min <- min(y2)
+y2.max <- max(y2)
+
+plot(x2, y2, type="l", xlab="x", ylab = "y", main = "Example 2", 
+     xlim = range(x2.min:x2.max), ylim = range(y2.min:y2.max))
+points(cbind(0,0),pch=1,col="red")
+points(cbind(A2[1,ncol(A2)],A2[2,ncol(A2)]),pch=1,col="red")
+
+#example 3
+A3 <- AdaWalk()
+x3 <- A3[1,]
+y3 <- A3[2,]
+x3.min <- min(x3)
+x3.max <- max(x3)
+y3.min <- min(y3)
+y3.max <- max(y3)
+
+plot(x3, y3, type="l", xlab="x", ylab = "y", main = "Example 3", 
+     xlim = range(x3.min:x3.max), ylim = range(y3.min:y3.max))
+points(cbind(0,0),pch=1,col="red")
+points(cbind(A3[1,ncol(A3)],A3[2,ncol(A3)]),pch=1,col="red")
+
+#example 4
+A4 <- AdaWalk()
+x4 <- A4[1,]
+y4 <- A4[2,]
+x4.min <- min(x4)
+x4.max <- max(x4)
+y4.min <- min(y4)
+y4.max <- max(y4)
+
+plot(x4, y4, type="l", xlab="x", ylab = "y", main = "Example 4", 
+     xlim = range(x4.min:x4.max), ylim = range(y4.min:y4.max))
+points(cbind(0,0),pch=1,col="red")
+points(cbind(A4[1,ncol(A4)],A4[2,ncol(A4)]),pch=1,col="red")
+```
+3+4.
+```{r}
+#Estimate the probability that Ada comes back to the orgin (0, 0) in at most 
+#100 steps. Use a Monte Carlo simulation with at least 100 repeated experiments
+#(or more, if your computer can)
+n.mc <- 199
+success <- 0
+
+x <- 0
+y <- 0
+xpos <- c() #x coordinates of each move
+ypos <- c() #y coordinates of each move
+xpos[1] <- 0
+ypos[1] <- 0
+
+for (i.mc in 1:n.mc){
+  flag <- F
+  for (i in 1:100){ # final position is A_100
+    r <- runif(1) #random uniform numbers
+    if (r <= 0.25){
+      x <- x + 1 #move right
+    }
+    if (r > 0.25 & r <= 0.5){
+      x <- x - 1 #move left
+    }
+    if (r > 0.5 & r <= 0.75){
+      y <- y + 1 #move up
+    }
+    if(r > 0.75){ 
+      y <- y - 1 #move down
+    }
+    xpos[i+1] <- x #update into the vector xpos
+    ypos[i+1] <- y #update into the vector ypos
+    if (i <= 100 & xpos[i+1] == 0 & ypos[i+1] == 0 & !flag){
+      flag <- T
+      success <- success + 1
+    }
+    if (xpos[i+1] == xpos[i] & ypos[i+1] == ypos[i]){ #A_t != A_{t+1}
+     break
+    }
+    if(xpos[i+1] == 0 & ypos[i+1] == 0){ #if Ada is back in position (0,0)
+    break
+    }
+    # if (i <= 100 & xpos[i+1] == 0 & ypos[i+1] == 0 & !flag){
+    #   flag <- T
+    #   success <- success + 1
+    # }
+  }
+}
+cat("The estimated probability of X that Ada comes back to the orgin (0, 0) 
+in at most 100 steps is", success/n.mc, "and the number of steps are", success)
+```
+
+## Problem 4 - Gradient descent
+1.
+```{r}
+#euclidean norm = sqrt((x1)^2+(x2)^2+...+(xn)^2)
+euclidean.norm <- function(x){
+  total = 0
+  for (i in 1:length(x)){
+    total = total +(x[i])^2
+  }
+  sqrt(total)
+}
+
+n = 1
+xk <- matrix()
+GradientDescent <- function(A, b, h, x0, TOL, N.max){
+  gradient.f <- function(x){A %*% x + b} #formula of gradient of f(x)
+  x <-  x0 - h * gradient.f(x0)
+  xk <- cbind(x)
+  while (euclidean.norm(x-x0) > TOL || n <= N.max){
+    x0 <- x
+    x <-  x0 - h*gradient.f(x0)
+    xk <- cbind(xk,x)
+    n <- n+1
+  }
+  return (xk)
+}
+```
+
+2.
+```{r}
+A <- matrix(c(2,1,1,2), nrow=2)
+b <- matrix(c(5,6))
+x0 <- matrix(c(0,0))
+GradientDescent(A, b, 0.1, x0, 1e-7, 100)
+#each column represents a vector of x_k
+```
+3. 
+```{r}
+xmin <- c(-4/3,-7/3)
+xk <- GradientDescent(A, b, 0.1, x0, 1e-7, 100)
+k <- ncol(xk) #number of iterations
+decay <- c()
+for (i in 1:k){
+  decay <- c(decay, euclidean.norm(xk[i] - xmin))
+}
+
+#convergence plot
+plot(1:k, decay, log = "y", xlab = "Iteration", ylab = "Decay of ||xk - xmin||_2")
+```
+
+4. 
+```{r}
+m <- function(n){
+  mat <- matrix(rep(0, n^2),nrow = n)
+  for (i in 1:n){
+    for (j in 1:n){
+      if(i == j){mat[i,j] <- 2} #main diagonal
+      if(i+1 == j || i-1 ==j){mat[i,j] <- -1} #first upper and lower diagonal
+    }
+  }
+  
+  return(mat)
+ 
+}
+
+vec <- function(n){
+  c(rep(1,n))
+}
+m(10)
+vec(10)
+```
+
+5.
+```{r}
+x0 <- matrix(c(rep(0,10)))
+M <- m(10)
+v <- vec(10)
+xList <- GradientDescent(M, v, 0.5, x0, 1e-7, 100)
+k <- ncol(xList) #number of iterations
+x.min <- xList[,k] #last iteration
+x.min
+f <- function(x) {1/2*t(x)%*%M%*%x + t(v)%*%x + 1}
+f(x.min)
+```
